@@ -3,14 +3,20 @@
 > 🚨🚨**Notice**🚨🚨
 > 
 > Configuration for the Application Study Tool has changed significantly in the v0.6.0 release. To
-update a legacy configuration, see [docs/config_migration.md](docs/config_migration.md).
+update a legacy configuration, see [pages/config_migration.md](pages/config_migration.md).
+>
+> Before you start, make sure to backup the /config/big-ips.json file!
+
 
 ## Overview
+
+> See the [AST Docsite](https://f5devcentral.github.io/application-study-tool/) for detailed
+configuration, troubleshooting info, etc.
 
 The Application Study Tool is intended to provide enhanced insights into (classic) BIG-IP products, leveraging best in class
 open source telemetry tools. The full installation includes:
 
-* Custom Instance of OpenTelemetry Collector with enhanced BIG-IP data receivers (data fetched via iControlRest) [Full List of Metrics Collected](docs/receiver_metrics.md).
+* Custom Instance of OpenTelemetry Collector with enhanced BIG-IP data receivers (data fetched via iControlRest) [Full List of Metrics Collected](pages/receiver_metrics.md).
 * Prometheus timeseries database for storing and querying collected data.
 * Grafana Instance with pre-configured dashboards for quick insights at the device and "fleet" levels.
 
@@ -19,13 +25,21 @@ production levels of reliability. For production/operational use cases, you can 
 accounting for things like high availability, enhanced security via e.g. Grafana OIDC integration, and similar. Alternatively,
 the Openetlemetry Collector can be configured to send data to existing production ops monitoring tools as desired.
 
-![](./diagrams/ui.gif)
+![](./pages/assets/ui.gif)
 
 ## Getting Started
 
 ### Prerequisites
 
-docker (or compatible) - [Installation Instructions](https://docs.docker.com/engine/install/)
+[Git Client](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+
+Docker (or compatible) container environment with compose.
+
+Installation Instructions:
+  * [General (docker engine)](https://docs.docker.com/engine/install/)
+  * [Ubuntu (docker engine)](https://docs.docker.com/engine/install/ubuntu/)
+  * [RHEL (docker engine)](https://docs.docker.com/engine/install/rhel/)
+  * [Podman](https://podman.io/docs/installation)
 
 ### Installation
 
@@ -54,18 +68,18 @@ docker-compose up
 ## Configuration
 
 For additional configuration management background, see
-[docs/config-management.md](docs/config-management.md).
+[pages/config_management.md](pages/config_management.md).
 The below assumes you're using the config_helper script for assisted management.
 
 
 Application Study Tool config management relies on default configs in
-[/configs/ast_defaults.yaml](/configs/ast_defaults.yaml) and device specific information in
-[/configs/bigip_receivers.yaml](/configs/bigip_receivers.yaml).
+[/configs/ast_defaults.yaml](/config/ast_defaults.yaml) and device specific information in
+[/configs/bigip_receivers.yaml](/config/bigip_receivers.yaml).
 
 Settings in the bigip_receivers.yaml override those in ast_defaults.yaml.
 
 To update a legacy (pre v0.6.0) configuration, to the new scheme see
-[docs/config_migration.md](docs/config_migration.md)
+[pages/config_migration.md](pages/config_migration.md)
 
 ## Configure Default Device Settings
 
@@ -85,7 +99,7 @@ bigip_receiver_defaults:
   # The data_types that should be enabled or disabled.
   # DNS and GTM are disabled by default and users can enable those modules
   # on all devices by setting the below to true.
-  # A full list of data_types is in /docs/receiver_readme.md.
+  # A full list of data_types is in pages/receiver_readme.md.
   data_types:
     f5.dns:
       enabled: false
@@ -203,10 +217,20 @@ as SENSOR_ID and SENSOR_SECRET_TOKEN (see [.env-example](./.env-example) for exa
 
 ## Run The Configuration Helper
 The config helper script can be run natively or via docker to merge the default and device
-level configs into the final OTEL Collector config as follows:
-```shell
-# Run the configuration generator
-docker run --rm -it -w /app -v ${PWD}:/app --entrypoint /app/src/bin/init_entrypoint.sh python:3.12.6-slim-bookworm --generate-config
+level configs into the final OTEL Collector config from the project root directory as follows:
+
+**Run With Docker**
+```bash
+# Run the configuration generator from the project root directory
+# If `echo $PWD` doesn't give you the current directory on your system,
+# replace the '-v ${PWD}' section with '-v /path/to/your/directory'
+$ docker run --rm -it -w /app -v ${PWD}:/app --entrypoint /app/src/bin/init_entrypoint.sh python:3.12.6-slim-bookworm --generate-config
+```
+
+**Run With System Python**
+```bash
+$ pip install PyYAML==6.0.2
+$ python /app/src/config_helper.py --generate-config
 ```
 
 This will write 2 new files in the services/otel_collector directory:
@@ -214,6 +238,10 @@ This will write 2 new files in the services/otel_collector directory:
 * `receivers.yaml` - The final list of scraper configs and their settings.
 * `pipelines.yaml` - The final pipeline configs that map receievers to output destinations
 (prometheus, and optionally F5).
+
+## Adding New Devices or Updating Configs
+To add new devices or update the config after changes to the ast_defaults.yaml or receivers.yaml files,
+re-run the config helper script as shown above and then restart the otel collector container.
 
 ## Account Permissions
 The vast majority of telemetry data can be collected with read-only access to the BigIP. Some
